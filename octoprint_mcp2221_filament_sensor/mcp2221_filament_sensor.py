@@ -138,6 +138,7 @@ class MCP2221FilamentSensorPlugin(
     octoprint.plugin.EventHandlerPlugin,
     octoprint.plugin.ProgressPlugin,
     octoprint.plugin.SimpleApiPlugin,
+    octoprint.plugin.BlueprintPlugin,
 ):
 
     def __init__(self):
@@ -387,32 +388,42 @@ class MCP2221FilamentSensorPlugin(
         return status
 
     def _test_sensors(self):
-        """Test sensor readings"""
+        """Test sensor functionality"""
         if not self.mcp:
             return {"error": "Hardware not connected"}
 
-        results = {}
-
         try:
-            # Read all GPIO pins at once (EasyMCP2221 returns tuple: gp0, gp1, gp2, gp3)
-            gpio_readings = self.mcp.GPIO_read()
-
-            for extruder_idx in [0, 1]:
-                if self._settings.get_boolean([f"e{extruder_idx}_enabled"]):
-                    runout_pin = self._settings.get_int([f"e{extruder_idx}_runout_pin"])
-                    motion_pin = self._settings.get_int([f"e{extruder_idx}_motion_pin"])
-
-                    runout_reading = gpio_readings[runout_pin]
-                    motion_reading = gpio_readings[motion_pin]
-
-                    results[f"e{extruder_idx}"] = {
-                        "runout": {"pin": runout_pin, "raw_value": runout_reading},
-                        "motion": {"pin": motion_pin, "raw_value": motion_reading}
-                    }
+            if hasattr(self.mcp, "GPIO_read"):
+                readings = self.mcp.GPIO_read()
+                return {
+                    "test_result": "success",
+                    "raw_readings": readings,
+                    "timestamp": time.time(),
+                }
+            else:
+                return {"error": "GPIO read method not available"}
         except Exception as e:
-            return {"error": f"Error reading sensors: {e}"}
+            self._logger.exception("Error testing sensors")
+            return {"error": str(e)}
 
-        return results
+    # BlueprintPlugin mixin methods
+    def is_blueprint_csrf_protected(self):
+        """Define CSRF protection for blueprint routes"""
+        return True
+
+    def is_blueprint_protected(self):
+        """Define authentication protection for blueprint routes"""
+        return False
+
+    @octoprint.plugin.BlueprintPlugin.route("/status", methods=["GET"])
+    def blueprint_api_status(self):
+        """Blueprint route for sensor status"""
+        return flask.jsonify(self._get_status())
+
+    @octoprint.plugin.BlueprintPlugin.route("/test", methods=["POST"])
+    def blueprint_api_test(self):
+        """Blueprint route for sensor testing"""
+        return flask.jsonify(self._test_sensors())
 
     ##~~ Hardware Management
 
