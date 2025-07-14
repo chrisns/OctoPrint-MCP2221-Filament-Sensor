@@ -14,7 +14,8 @@ import flask
 from octoprint.events import Events
 
 try:
-    from PyMCP2221A import PyMCP2221A
+    import EasyMCP2221
+
     MCP2221A_AVAILABLE = True
 except ImportError:
     MCP2221A_AVAILABLE = False
@@ -22,40 +23,43 @@ except ImportError:
 
 class MockMCP2221A:
     """Mock MCP2221A for testing without hardware"""
-    
+
     def __init__(self):
         self._pins = {0: False, 1: False, 2: False, 3: False}
         self._last_values = {0: False, 1: False, 2: False, 3: False}
         self.is_connected = True
         self._runout_triggered = {0: False, 2: False}  # Track if runout already triggered
-        
-    def GPIO_read(self, pin: int) -> bool:
-        """Simulate GPIO reading with realistic behavior for testing"""
+
+    def GPIO_read(self):
+        """Simulate GPIO reading - returns tuple (gp0, gp1, gp2, gp3) to match EasyMCP2221 API"""
         import random
-        # Simulate sensor readings for testing
-        if pin == 0:  # E0 runout sensor
-            # Runout sensor: True = filament present, False = no filament
-            # Only trigger runout occasionally for testing (1% chance if not already triggered)
-            if not self._runout_triggered[0] and random.random() > 0.999:
-                self._runout_triggered[0] = True
-                return False  # No filament
-            elif self._runout_triggered[0] and random.random() > 0.99:
-                self._runout_triggered[0] = False  # Reset for next test
-            return True  # Filament present (normal state)
-        elif pin == 1:  # E0 motion sensor
-            return random.choice([True, False])  # Simulate motion pulses
-        elif pin == 2:  # E1 runout sensor  
-            # Same logic as E0
-            if not self._runout_triggered[2] and random.random() > 0.999:
-                self._runout_triggered[2] = True
-                return False  # No filament
-            elif self._runout_triggered[2] and random.random() > 0.99:
-                self._runout_triggered[2] = False  # Reset for next test
-            return True  # Filament present (normal state)
-        elif pin == 3:  # E1 motion sensor
-            return random.choice([True, False])  # Simulate motion pulses
-        return False
-        
+
+        # GP0 (E0 runout sensor)
+        if not self._runout_triggered[0] and random.random() > 0.999:
+            self._runout_triggered[0] = True
+        elif self._runout_triggered[0] and random.random() > 0.99:
+            self._runout_triggered[0] = False
+        gp0 = not self._runout_triggered[0]  # True = filament present
+
+        # GP1 (E0 motion sensor) - simulate motion pulses
+        gp1 = random.choice([True, False])
+
+        # GP2 (E1 runout sensor)
+        if not self._runout_triggered[2] and random.random() > 0.999:
+            self._runout_triggered[2] = True
+        elif self._runout_triggered[2] and random.random() > 0.99:
+            self._runout_triggered[2] = False
+        gp2 = not self._runout_triggered[2]  # True = filament present
+
+        # GP3 (E1 motion sensor) - simulate motion pulses
+        gp3 = random.choice([True, False])
+
+        return (gp0, gp1, gp2, gp3)
+
+    def set_pin_function(self, **kwargs):
+        """Mock pin configuration - accepts gp0, gp1, gp2, gp3 kwargs"""
+        pass
+
     def close(self):
         self.is_connected = False
 
@@ -364,21 +368,24 @@ class MCP2221FilamentSensorPlugin(
 
         results = {}
 
-        for extruder_idx in [0, 1]:
-            if self._settings.get_boolean([f"e{extruder_idx}_enabled"]):
-                runout_pin = self._settings.get_int([f"e{extruder_idx}_runout_pin"])
-                motion_pin = self._settings.get_int([f"e{extruder_idx}_motion_pin"])
+        try:
+            # Read all GPIO pins at once (EasyMCP2221 returns tuple: gp0, gp1, gp2, gp3)
+            gpio_readings = self.mcp.GPIO_read()
 
-                try:
-                    runout_reading = self.mcp.GPIO_read(runout_pin)
-                    motion_reading = self.mcp.GPIO_read(motion_pin)
+            for extruder_idx in [0, 1]:
+                if self._settings.get_boolean([f"e{extruder_idx}_enabled"]):
+                    runout_pin = self._settings.get_int([f"e{extruder_idx}_runout_pin"])
+                    motion_pin = self._settings.get_int([f"e{extruder_idx}_motion_pin"])
+
+                    runout_reading = gpio_readings[runout_pin]
+                    motion_reading = gpio_readings[motion_pin]
 
                     results[f"e{extruder_idx}"] = {
                         "runout": {"pin": runout_pin, "raw_value": runout_reading},
                         "motion": {"pin": motion_pin, "raw_value": motion_reading}
                     }
-                except Exception as e:
-                    results[f"e{extruder_idx}"] = {"error": str(e)}
+        except Exception as e:
+            return {"error": f"Error reading sensors: {e}"}
 
         return results
 
@@ -394,8 +401,15 @@ class MCP2221FilamentSensorPlugin(
             self.use_mock = True
         else:
             try:
-                self.mcp = PyMCP2221A.PyMCP2221A()
-                self._logger.info("MCP2221A hardware initialized successfully")
+                self.mcp = EasyMCP2221.Device()
+                # Configure pins as GPIO inputs for sensor reading
+                self.mcp.set_pin_function(
+                    gp0="GPIO_IN",  # E0 runout sensor
+                    gp1="GPIO_IN",  # E0 motion sensor
+                    gp2="GPIO_IN",  # E1 runout sensor
+                    gp3="GPIO_IN",  # E1 motion sensor
+                )
+                self._logger.info("EasyMCP2221 hardware initialized successfully")
             except Exception as e:
                 self._logger.error(f"Failed to initialize MCP2221A hardware: {e}")
                 self._logger.info("Falling back to mock mode")
@@ -513,12 +527,15 @@ class MCP2221FilamentSensorPlugin(
                 continue
 
             try:
-                # Read sensors
+                # Read all GPIO pins at once (EasyMCP2221 returns tuple: gp0, gp1, gp2, gp3)
+                gpio_readings = self.mcp.GPIO_read()
+
+                # Extract individual sensor readings
                 runout_sensor = sensors["runout"]
                 motion_sensor = sensors["motion"]
 
-                runout_reading = self.mcp.GPIO_read(runout_sensor.pin)
-                motion_reading = self.mcp.GPIO_read(motion_sensor.pin)
+                runout_reading = gpio_readings[runout_sensor.pin]
+                motion_reading = gpio_readings[motion_sensor.pin]
 
                 # Update sensor states
                 runout_changed = runout_sensor.update(runout_reading)

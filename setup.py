@@ -12,7 +12,7 @@ plugin_url = "https://github.com/chrisns/OctoPrint-MCP2221-Filament-Sensor"
 plugin_license = "MIT"
 
 plugin_requires = [
-    "PyMCP2221A>=1.4.0",
+    "EasyMCP2221>=1.4.0",
 ]
 
 import setuptools
