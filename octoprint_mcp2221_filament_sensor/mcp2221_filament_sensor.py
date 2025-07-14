@@ -133,6 +133,7 @@ class MCP2221FilamentSensorPlugin(
     octoprint.plugin.EventHandlerPlugin,
     octoprint.plugin.ProgressPlugin,
     octoprint.plugin.SimpleApiPlugin,
+    octoprint.plugin.BlueprintPlugin,
 ):
 
     def __init__(self):
@@ -304,13 +305,24 @@ class MCP2221FilamentSensorPlugin(
 
     ##~~ BlueprintPlugin mixin
 
+    def is_blueprint_protected(self):
+        return False
+
+    def is_blueprint_csrf_protected(self):
+        return False
+
+    @octoprint.plugin.BlueprintPlugin.route("/status", methods=["GET"])
+    def api_get_status(self):
+        """Handle GET requests to /status endpoint"""
+        return flask.jsonify(self._get_status())
+
     ##~~ SimpleApiPlugin mixin
 
     def is_api_adminonly(self):
         return False
 
     def is_api_protected(self):
-        return False  # Temporarily disable for testing
+        return False  # Disable CSRF protection
 
     def get_api_commands(self):
         return dict(
@@ -321,13 +333,13 @@ class MCP2221FilamentSensorPlugin(
     def on_api_command(self, command, data):
         """Handle API commands"""
         if command == "get_status":
-            return self._get_status()
+            return flask.jsonify(self._get_status())
         elif command == "test_sensors":
-            return self._test_sensors()
+            return flask.jsonify(self._test_sensors())
 
     def on_api_get(self, request):
         """Handle API GET requests"""
-        return self._get_status()
+        return flask.jsonify(self._get_status())
 
     def _get_status(self):
         """Get current sensor status"""
