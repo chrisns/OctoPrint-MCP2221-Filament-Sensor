@@ -130,33 +130,33 @@ class MCP2221FilamentSensorPlugin(
     octoprint.plugin.ProgressPlugin,
     octoprint.plugin.SimpleApiPlugin,
 ):
-    
+
     def __init__(self):
         self._logger = logging.getLogger("octoprint.plugins.mcp2221_filament_sensor")
-        
+
         # Hardware interface
         self.mcp = None
         self.use_mock = False
-        
+
         # Sensor objects
         self.sensors = {}  # Dict of extruder -> {'runout': SensorState, 'motion': SensorState}
-        
+
         # Monitoring
         self.monitoring_thread = None
         self.monitoring_active = False
         self.monitor_lock = threading.Lock()
-        
+
         # State tracking
         self.current_extruder = 0
         self.is_printing = False
         self.print_paused = False
         self.last_gcode_analysis = {}
-        
+
         # Trigger tracking
         self.triggered_extruders = set()  # Track which extruders have triggered sensors
-        
+
     ##~~ SettingsPlugin mixin
-    
+
     def get_settings_defaults(self):
         return {
             # Hardware settings
@@ -193,12 +193,12 @@ class MCP2221FilamentSensorPlugin(
             # Debug settings
             "debug_logging": False,
         }
-        
+
     def on_settings_save(self, data):
         old_debug = self._settings.get_boolean(["debug_logging"])
-        
+
         octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
-        
+
         # Update debug logging level
         new_debug = self._settings.get_boolean(["debug_logging"])
         if old_debug != new_debug:
@@ -206,20 +206,20 @@ class MCP2221FilamentSensorPlugin(
                 self._logger.setLevel(logging.DEBUG)
             else:
                 self._logger.setLevel(logging.INFO)
-                
+
         # Restart monitoring with new settings
         self._restart_monitoring()
-        
+
     ##~~ AssetPlugin mixin
-    
+
     def get_assets(self):
         return {
             "js": ["js/mcp2221_filament_sensor.js"],
             "css": ["css/mcp2221_filament_sensor.css"],
         }
-        
+
     ##~~ TemplatePlugin mixin
-    
+
     def get_template_configs(self):
         return [
             {
@@ -228,61 +228,61 @@ class MCP2221FilamentSensorPlugin(
                 "custom_bindings": True,
             }
         ]
-        
+
     ##~~ StartupPlugin mixin
-    
+
     def on_after_startup(self):
         self._logger.info("MCP2221A Filament Sensor Plugin starting up...")
-        
+
         # Set debug logging if enabled
         if self._settings.get_boolean(["debug_logging"]):
             self._logger.setLevel(logging.DEBUG)
-            
+
         # Initialize hardware
         self._initialize_hardware()
-        
+
         # Start monitoring
         self._start_monitoring()
-        
+
     ##~~ ShutdownPlugin mixin
-    
+
     def on_shutdown(self):
         self._logger.info("MCP2221A Filament Sensor Plugin shutting down...")
         self._stop_monitoring()
         self._cleanup_hardware()
-        
+
     ##~~ EventHandlerPlugin mixin
-    
+
     def on_event(self, event, payload):
         if event == Events.PRINT_STARTED:
             self.is_printing = True
             self.print_paused = False
             self.triggered_extruders.clear()
             self._logger.info("Print started - enabling sensor monitoring")
-            
+
         elif event == Events.PRINT_DONE or event == Events.PRINT_FAILED or event == Events.PRINT_CANCELLED:
             self.is_printing = False
             self.print_paused = False
             self.triggered_extruders.clear()
             self._logger.info("Print ended - continuing sensor monitoring")
-            
+
         elif event == Events.PRINT_PAUSED:
             self.print_paused = True
             self._logger.info("Print paused")
-            
+
         elif event == Events.PRINT_RESUMED:
             self.print_paused = False
             self.triggered_extruders.clear()  # Reset triggers on resume
             self._logger.info("Print resumed - resetting sensor triggers")
-            
+
     ##~~ ProgressPlugin mixin
-    
+
     def on_print_progress(self, storage, path, progress):
         # This is called during printing, we can use it to track print state
         pass
-        
+
     ##~~ GcodeHook to track extruder changes
-    
+
     def process_gcode(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
         """Track extruder changes via T commands"""
         if gcode and gcode.startswith('T'):
@@ -295,36 +295,36 @@ class MCP2221FilamentSensorPlugin(
                         self._logger.debug(f"Active extruder changed to E{self.current_extruder}")
             except (ValueError, IndexError):
                 pass  # Invalid T command, ignore
-        
+
         return cmd
-        
+
     ##~~ BlueprintPlugin mixin
-    
+
     ##~~ SimpleApiPlugin mixin
-    
+
     def is_api_adminonly(self):
         return False
-        
+
     def is_api_protected(self):
         return False  # Temporarily disable for testing
-        
+
     def get_api_commands(self):
         return dict(
             get_status=[],
             test_sensors=[]
         )
-        
+
     def on_api_command(self, command, data):
         """Handle API commands"""
         if command == "get_status":
             return self._get_status()
         elif command == "test_sensors":
             return self._test_sensors()
-            
+
     def on_api_get(self, request):
         """Handle API GET requests"""
         return self._get_status()
-        
+
     def _get_status(self):
         """Get current sensor status"""
         status = {
@@ -334,7 +334,7 @@ class MCP2221FilamentSensorPlugin(
             "use_mock": getattr(self, 'use_mock', False),
             "sensors": {}
         }
-        
+
         for extruder_idx in [0, 1]:
             if extruder_idx in self.sensors:
                 extruder_sensors = self.sensors[extruder_idx]
@@ -354,40 +354,40 @@ class MCP2221FilamentSensorPlugin(
                         "rate": extruder_sensors["motion"].get_motion_rate()
                     }
                 }
-                
+
         return status
-        
+
     def _test_sensors(self):
         """Test sensor readings"""
         if not self.mcp:
             return {"error": "Hardware not connected"}
-            
+
         results = {}
-        
+
         for extruder_idx in [0, 1]:
             if self._settings.get_boolean([f"e{extruder_idx}_enabled"]):
                 runout_pin = self._settings.get_int([f"e{extruder_idx}_runout_pin"])
                 motion_pin = self._settings.get_int([f"e{extruder_idx}_motion_pin"])
-                
+
                 try:
                     runout_reading = self.mcp.GPIO_read(runout_pin)
                     motion_reading = self.mcp.GPIO_read(motion_pin)
-                    
+
                     results[f"e{extruder_idx}"] = {
                         "runout": {"pin": runout_pin, "raw_value": runout_reading},
                         "motion": {"pin": motion_pin, "raw_value": motion_reading}
                     }
                 except Exception as e:
                     results[f"e{extruder_idx}"] = {"error": str(e)}
-                    
+
         return results
-        
+
     ##~~ Hardware Management
-    
+
     def _initialize_hardware(self):
         """Initialize MCP2221A hardware connection"""
         self.use_mock = self._settings.get_boolean(["use_mock"])
-        
+
         if self.use_mock or not MCP2221A_AVAILABLE:
             self._logger.info("Using mock MCP2221A for testing")
             self.mcp = MockMCP2221A()
@@ -401,14 +401,14 @@ class MCP2221FilamentSensorPlugin(
                 self._logger.info("Falling back to mock mode")
                 self.mcp = MockMCP2221A()
                 self.use_mock = True
-                
+
         # Initialize sensor objects
         self._initialize_sensors()
-        
+
     def _initialize_sensors(self):
         """Initialize sensor state objects based on settings"""
         self.sensors.clear()
-        
+
         for extruder_idx in [0, 1]:
             if self._settings.get_boolean([f"e{extruder_idx}_enabled"]):
                 # Runout sensor
@@ -418,7 +418,7 @@ class MCP2221FilamentSensorPlugin(
                     inverted=self._settings.get_boolean([f"e{extruder_idx}_runout_inverted"]),
                     debounce_time=self._settings.get_float([f"e{extruder_idx}_debounce_time"])
                 )
-                
+
                 # Motion sensor
                 motion_sensor = SensorState(
                     pin=self._settings.get_int([f"e{extruder_idx}_motion_pin"]),
@@ -426,15 +426,15 @@ class MCP2221FilamentSensorPlugin(
                     inverted=self._settings.get_boolean([f"e{extruder_idx}_motion_inverted"]),
                     debounce_time=self._settings.get_float([f"e{extruder_idx}_debounce_time"])
                 )
-                
+
                 self.sensors[extruder_idx] = {
                     "runout": runout_sensor,
                     "motion": motion_sensor
                 }
-                
+
                 self._logger.info(f"Initialized sensors for E{extruder_idx}: "
                                 f"runout=pin{runout_sensor.pin}, motion=pin{motion_sensor.pin}")
-                
+
     def _cleanup_hardware(self):
         """Clean up hardware connections"""
         if self.mcp and hasattr(self.mcp, 'close'):
@@ -443,36 +443,36 @@ class MCP2221FilamentSensorPlugin(
             except Exception as e:
                 self._logger.error(f"Error closing MCP2221A: {e}")
         self.mcp = None
-        
+
     ##~~ Monitoring
-    
+
     def _start_monitoring(self):
         """Start the sensor monitoring thread"""
         if self.monitoring_thread and self.monitoring_thread.is_alive():
             return
-            
+
         self.monitoring_active = True
         self.monitoring_thread = threading.Thread(target=self._monitoring_loop, daemon=True)
         self.monitoring_thread.start()
         self._logger.info("Sensor monitoring thread started")
-        
+
     def _stop_monitoring(self):
         """Stop the sensor monitoring thread"""
         self.monitoring_active = False
         if self.monitoring_thread and self.monitoring_thread.is_alive():
             self.monitoring_thread.join(timeout=2.0)
         self._logger.info("Sensor monitoring thread stopped")
-        
+
     def _restart_monitoring(self):
         """Restart monitoring with new settings"""
         self._stop_monitoring()
         self._initialize_sensors()
         self._start_monitoring()
-        
+
     def _monitoring_loop(self):
         """Main sensor monitoring loop - optimized for pulse detection"""
         base_poll_interval = self._settings.get_float(["poll_interval"])
-        
+
         while self.monitoring_active:
             try:
                 # Adaptive polling rate based on print status
@@ -482,98 +482,98 @@ class MCP2221FilamentSensorPlugin(
                 else:
                     # Slower polling when idle to conserve CPU
                     poll_interval = max(base_poll_interval, 0.1)   # 100ms min when idle
-                
+
                 with self.monitor_lock:
                     self._check_sensors()
-                    
+
                 time.sleep(poll_interval)
-                
+
             except Exception as e:
                 self._logger.error(f"Error in monitoring loop: {e}")
                 time.sleep(1.0)  # Longer delay on error
-                
+
     def _check_sensors(self):
         """Check all sensors and handle triggers"""
         if not self.mcp:
             return
-            
+
         only_active = self._settings.get_boolean(["only_active_extruder"])
-        
+
         for extruder_idx, sensors in self.sensors.items():
             # Skip disabled extruders
             if not self._settings.get_boolean([f"e{extruder_idx}_enabled"]):
                 continue
-                
+
             # Skip non-active extruders if configured
             if only_active and self.is_printing and extruder_idx != self.current_extruder:
                 continue
-                
+
             # Skip already triggered extruders during printing
             if self.is_printing and extruder_idx in self.triggered_extruders:
                 continue
-                
+
             try:
                 # Read sensors
                 runout_sensor = sensors["runout"]
                 motion_sensor = sensors["motion"]
-                
+
                 runout_reading = self.mcp.GPIO_read(runout_sensor.pin)
                 motion_reading = self.mcp.GPIO_read(motion_sensor.pin)
-                
+
                 # Update sensor states
                 runout_changed = runout_sensor.update(runout_reading)
                 motion_changed = motion_sensor.update(motion_reading)
-                
+
                 # Check for triggers
                 self._check_runout_trigger(extruder_idx, runout_sensor, runout_changed)
                 self._check_motion_trigger(extruder_idx, motion_sensor)
-                
+
                 if self._settings.get_boolean(["debug_logging"]):
                     if runout_changed or motion_changed:
                         self._logger.debug(f"E{extruder_idx} sensors: runout={runout_sensor.last_stable_state}, "
                                         f"motion={motion_sensor.last_stable_state}")
-                        
+
             except Exception as e:
                 self._logger.error(f"Error reading sensors for E{extruder_idx}: {e}")
-                
+
     def _check_runout_trigger(self, extruder_idx: int, sensor: SensorState, state_changed: bool):
         """Check if runout sensor should trigger an action"""
         # Check if sensor is enabled for this extruder
         if not self._settings.get_boolean([f"e{extruder_idx}_enabled"]):
             return
-            
+
         # Only trigger runout actions during printing
         if not self.is_printing:
             return
-            
+
         # Trigger on runout (sensor goes from True to False, indicating no filament)
         if state_changed and not sensor.last_stable_state:
             self._logger.warning(f"Filament runout detected on E{extruder_idx}")
             self._trigger_runout_action(extruder_idx)
-            
+
     def _check_motion_trigger(self, extruder_idx: int, sensor: SensorState):
         """Check if motion sensor should trigger due to timeout"""
         # Check if sensor is enabled for this extruder
         if not self._settings.get_boolean([f"e{extruder_idx}_enabled"]):
             return
-            
+
         # Only trigger motion timeout actions during printing and not paused
         if not self.is_printing or self.print_paused:
             return
-            
+
         timeout = self._settings.get_float([f"e{extruder_idx}_motion_timeout"])
-        
+
         if sensor.get_motion_timeout_status(timeout):
             # Only trigger once per timeout event
             if time.time() - sensor.last_trigger_time > timeout:
                 sensor.last_trigger_time = time.time()
                 self._logger.warning(f"Motion timeout detected on E{extruder_idx} (no motion for {timeout}s)")
                 self._trigger_motion_timeout_action(extruder_idx)
-                
+
     def _trigger_runout_action(self, extruder_idx: int):
         """Execute actions when filament runout is detected"""
         self.triggered_extruders.add(extruder_idx)
-        
+
         # Send notification
         if self._settings.get_boolean(["notification_enabled"]):
             self._plugin_manager.send_plugin_message(
@@ -584,12 +584,12 @@ class MCP2221FilamentSensorPlugin(
                     "message": f"Filament runout detected on E{extruder_idx}"
                 }
             )
-            
+
         # Execute G-code commands
         runout_gcode = self._settings.get(["runout_gcode"]).strip()
         if runout_gcode:
             gcode_commands = [cmd.strip() for cmd in runout_gcode.split('\n') if cmd.strip()]
-            
+
             for cmd in gcode_commands:
                 if cmd.startswith('@'):
                     # OctoPrint action command
@@ -606,11 +606,11 @@ class MCP2221FilamentSensorPlugin(
             # Fallback - just pause
             self._printer.pause_print()
             self._logger.info("No runout G-code configured, pausing print")
-                        
+
     def _trigger_motion_timeout_action(self, extruder_idx: int):
         """Execute actions when motion timeout is detected"""
         self.triggered_extruders.add(extruder_idx)
-        
+
         # Send notification
         if self._settings.get_boolean(["notification_enabled"]):
             self._plugin_manager.send_plugin_message(
@@ -621,12 +621,12 @@ class MCP2221FilamentSensorPlugin(
                     "message": f"Motion timeout detected on E{extruder_idx}"
                 }
             )
-            
+
         # Execute G-code commands
         motion_gcode = self._settings.get(["motion_timeout_gcode"]).strip()
         if motion_gcode:
             gcode_commands = [cmd.strip() for cmd in motion_gcode.split('\n') if cmd.strip()]
-            
+
             for cmd in gcode_commands:
                 if cmd.startswith('@'):
                     # OctoPrint action command
@@ -643,9 +643,9 @@ class MCP2221FilamentSensorPlugin(
             # Fallback - just pause
             self._printer.pause_print()
             self._logger.info("No motion timeout G-code configured, pausing print")
-                        
+
     ##~~ Utility methods
-    
+
     def get_update_information(self):
         """Software update hook"""
         return {
@@ -653,7 +653,7 @@ class MCP2221FilamentSensorPlugin(
                 "displayName": "MCP2221A Filament Sensor",
                 "displayVersion": self._plugin_version,
                 "type": "github_release",
-                "user": "example",
+                "user": "chrisns",
                 "repo": "OctoPrint-MCP2221-Filament-Sensor",
                 "current": self._plugin_version,
                 "stable_branch": {
@@ -669,4 +669,4 @@ class MCP2221FilamentSensorPlugin(
                     }
                 ],
             }
-        } 
+        }
