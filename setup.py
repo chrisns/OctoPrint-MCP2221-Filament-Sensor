@@ -4,7 +4,7 @@
 plugin_identifier = "mcp2221_filament_sensor"
 plugin_package = "octoprint_mcp2221_filament_sensor"
 plugin_name = "MCP2221A Filament Sensor"
-plugin_version = "1.0.2"
+plugin_version = "1.0.3"
 plugin_description = """OctoPrint plugin for filament run-out and motion detection using MCP2221A USB-to-GPIO bridge. Supports dual extruders with independent sensor monitoring."""
 plugin_author = "Chris Nesbitt-Smith"
 plugin_author_email = "chris@nesbitt-smith.com"
