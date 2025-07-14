@@ -78,66 +78,106 @@ $(function() {
 
         // Test sensors
         self.testSensors = function() {
+            console.log("Test sensors button clicked");
+
             if (!self.loginState.loggedIn()) {
-                return;
+              console.log("User not logged in, cannot test sensors");
+              return;
             }
 
             self.testingInProgress(true);
             self.testResults("");
 
+            console.log("Sending test_sensors request...");
+
             $.ajax({
-                url: API_BASEURL + "plugin/mcp2221_filament_sensor",
-                type: "POST",
-                dataType: "json",
-                data: JSON.stringify({
-                    command: "test_sensors"
-                }),
-                contentType: "application/json; charset=utf-8",
-                success: function(response) {
-                    self.testingInProgress(false);
-                    
-                    // Format the results for display
-                    var formatted = "Sensor Test Results:\n\n";
-                    
-                    if (response.e0) {
-                        formatted += "Extruder 0:\n";
-                        if (response.e0.error) {
-                            formatted += "  Error: " + response.e0.error + "\n";
-                        } else {
-                            formatted += "  Runout Sensor (Pin " + response.e0.runout.pin + "): " + 
-                                        (response.e0.runout.raw_value ? "HIGH" : "LOW") + "\n";
-                            formatted += "  Motion Sensor (Pin " + response.e0.motion.pin + "): " + 
-                                        (response.e0.motion.raw_value ? "HIGH" : "LOW") + "\n";
-                        }
-                        formatted += "\n";
-                    }
-                    
-                    if (response.e1) {
-                        formatted += "Extruder 1:\n";
-                        if (response.e1.error) {
-                            formatted += "  Error: " + response.e1.error + "\n";
-                        } else {
-                            formatted += "  Runout Sensor (Pin " + response.e1.runout.pin + "): " + 
-                                        (response.e1.runout.raw_value ? "HIGH" : "LOW") + "\n";
-                            formatted += "  Motion Sensor (Pin " + response.e1.motion.pin + "): " + 
-                                        (response.e1.motion.raw_value ? "HIGH" : "LOW") + "\n";
-                        }
-                    }
-                    
-                    self.testResults(formatted);
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    self.testingInProgress(false);
-                    
-                    var errorMsg = "Sensor test failed: ";
-                    if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
-                        errorMsg += jqXHR.responseJSON.error;
-                    } else {
-                        errorMsg += textStatus + " - " + errorThrown;
-                    }
-                    
-                    self.testResults(errorMsg);
+              url: API_BASEURL + "plugin/mcp2221_filament_sensor",
+              type: "POST",
+              dataType: "json",
+              data: JSON.stringify({
+                command: "test_sensors",
+              }),
+              contentType: "application/json; charset=utf-8",
+              success: function (response) {
+                console.log("Test sensors response received:", response);
+                self.testingInProgress(false);
+
+                // Format the results for display
+                var formatted = "Sensor Test Results:\n\n";
+
+                if (response.e0) {
+                  formatted += "Extruder 0:\n";
+                  if (response.e0.error) {
+                    formatted += "  Error: " + response.e0.error + "\n";
+                  } else {
+                    formatted +=
+                      "  Runout Sensor (Pin " +
+                      response.e0.runout.pin +
+                      "): " +
+                      (response.e0.runout.raw_value ? "HIGH" : "LOW") +
+                      "\n";
+                    formatted +=
+                      "  Motion Sensor (Pin " +
+                      response.e0.motion.pin +
+                      "): " +
+                      (response.e0.motion.raw_value ? "HIGH" : "LOW") +
+                      "\n";
+                  }
+                  formatted += "\n";
                 }
+
+                if (response.e1) {
+                  formatted += "Extruder 1:\n";
+                  if (response.e1.error) {
+                    formatted += "  Error: " + response.e1.error + "\n";
+                  } else {
+                    formatted +=
+                      "  Runout Sensor (Pin " +
+                      response.e1.runout.pin +
+                      "): " +
+                      (response.e1.runout.raw_value ? "HIGH" : "LOW") +
+                      "\n";
+                    formatted +=
+                      "  Motion Sensor (Pin " +
+                      response.e1.motion.pin +
+                      "): " +
+                      (response.e1.motion.raw_value ? "HIGH" : "LOW") +
+                      "\n";
+                  }
+                }
+
+                // Handle case where no extruders are enabled
+                if (!response.e0 && !response.e1) {
+                  formatted += "No extruders enabled or hardware error.\n";
+                  if (response.error) {
+                    formatted += "Error: " + response.error + "\n";
+                  }
+                }
+
+                console.log("Setting test results:", formatted);
+                self.testResults(formatted);
+              },
+              error: function (jqXHR, textStatus, errorThrown) {
+                console.log(
+                  "Test sensors request failed:",
+                  jqXHR,
+                  textStatus,
+                  errorThrown
+                );
+                self.testingInProgress(false);
+
+                var errorMsg = "Sensor test failed: ";
+                if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
+                  errorMsg += jqXHR.responseJSON.error;
+                } else if (jqXHR.responseText) {
+                  errorMsg += jqXHR.responseText;
+                } else {
+                  errorMsg += textStatus + " - " + errorThrown;
+                }
+
+                console.log("Setting error message:", errorMsg);
+                self.testResults(errorMsg);
+              },
             });
         };
 
