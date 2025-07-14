@@ -29,30 +29,35 @@ class MockMCP2221A:
         self._last_values = {0: False, 1: False, 2: False, 3: False}
         self.is_connected = True
         self._runout_triggered = {0: False, 2: False}  # Track if runout already triggered
+        self._motion_counter = 0
 
     def GPIO_read(self):
         """Simulate GPIO reading - returns tuple (gp0, gp1, gp2, gp3) to match EasyMCP2221 API"""
         import random
 
-        # GP0 (E0 runout sensor)
-        if not self._runout_triggered[0] and random.random() > 0.999:
+        # Make mock sensors much less aggressive - only trigger occasionally for testing
+        # GP0 (E0 runout sensor) - much lower chance of false runouts
+        if not self._runout_triggered[0] and random.random() > 0.9999:  # 0.01% chance
             self._runout_triggered[0] = True
-        elif self._runout_triggered[0] and random.random() > 0.99:
+        elif self._runout_triggered[0] and random.random() > 0.95:  # 5% chance to clear
             self._runout_triggered[0] = False
         gp0 = not self._runout_triggered[0]  # True = filament present
 
-        # GP1 (E0 motion sensor) - simulate motion pulses
-        gp1 = random.choice([True, False])
+        # GP1 (E0 motion sensor) - simulate more realistic motion
+        self._motion_counter += 1
+        gp1 = (self._motion_counter % 20) < 10  # Regular pulse pattern
 
-        # GP2 (E1 runout sensor)
-        if not self._runout_triggered[2] and random.random() > 0.999:
+        # GP2 (E1 runout sensor) - much lower chance of false runouts
+        if not self._runout_triggered[2] and random.random() > 0.9999:  # 0.01% chance
             self._runout_triggered[2] = True
-        elif self._runout_triggered[2] and random.random() > 0.99:
+        elif self._runout_triggered[2] and random.random() > 0.95:  # 5% chance to clear
             self._runout_triggered[2] = False
         gp2 = not self._runout_triggered[2]  # True = filament present
 
-        # GP3 (E1 motion sensor) - simulate motion pulses
-        gp3 = random.choice([True, False])
+        # GP3 (E1 motion sensor) - simulate more realistic motion
+        gp3 = (
+            (self._motion_counter + 10) % 20
+        ) < 10  # Regular pulse pattern, offset from GP1
 
         return (gp0, gp1, gp2, gp3)
 
@@ -242,6 +247,20 @@ class MCP2221FilamentSensorPlugin(
         if self._settings.get_boolean(["debug_logging"]):
             self._logger.setLevel(logging.DEBUG)
 
+        # Initialize printer state from OctoPrint's current state
+        try:
+            if hasattr(self._printer, "is_printing") and self._printer.is_printing():
+                self.is_printing = True
+                self._logger.info(
+                    "Plugin started during active print - enabling monitoring"
+                )
+            else:
+                self.is_printing = False
+                self._logger.info("Plugin started with no active print")
+        except Exception as e:
+            self._logger.warning(f"Could not determine initial print state: {e}")
+            self.is_printing = False
+
         # Initialize hardware
         self._initialize_hardware()
 
@@ -262,22 +281,30 @@ class MCP2221FilamentSensorPlugin(
             self.is_printing = True
             self.print_paused = False
             self.triggered_extruders.clear()
-            self._logger.info("Print started - enabling sensor monitoring")
+            self._logger.info(
+                f"Print started - enabling sensor monitoring (is_printing={self.is_printing})"
+            )
 
         elif event == Events.PRINT_DONE or event == Events.PRINT_FAILED or event == Events.PRINT_CANCELLED:
             self.is_printing = False
             self.print_paused = False
             self.triggered_extruders.clear()
-            self._logger.info("Print ended - continuing sensor monitoring")
+            self._logger.info(
+                f"Print ended ({event}) - disabling runout actions (is_printing={self.is_printing})"
+            )
 
         elif event == Events.PRINT_PAUSED:
             self.print_paused = True
-            self._logger.info("Print paused")
+            self._logger.info(
+                f"Print paused (is_printing={self.is_printing}, print_paused={self.print_paused})"
+            )
 
         elif event == Events.PRINT_RESUMED:
             self.print_paused = False
             self.triggered_extruders.clear()  # Reset triggers on resume
-            self._logger.info("Print resumed - resetting sensor triggers")
+            self._logger.info(
+                f"Print resumed - resetting sensor triggers (is_printing={self.is_printing}, print_paused={self.print_paused})"
+            )
 
     ##~~ ProgressPlugin mixin
 
@@ -559,11 +586,25 @@ class MCP2221FilamentSensorPlugin(
 
         # Only trigger runout actions during printing
         if not self.is_printing:
+            # Debug log to track why runouts might be happening when not printing
+            if state_changed and not sensor.last_stable_state:
+                self._logger.debug(
+                    f"Runout detected on E{extruder_idx} but ignoring - not printing (is_printing={self.is_printing})"
+                )
+            return
+
+        # Double-check printer state using OctoPrint's internal state
+        if hasattr(self._printer, "is_printing") and not self._printer.is_printing():
+            self._logger.debug(
+                f"Runout detected on E{extruder_idx} but ignoring - printer not printing according to OctoPrint"
+            )
             return
 
         # Trigger on runout (sensor goes from True to False, indicating no filament)
         if state_changed and not sensor.last_stable_state:
-            self._logger.warning(f"Filament runout detected on E{extruder_idx}")
+            self._logger.warning(
+                f"Filament runout detected on E{extruder_idx} during active print"
+            )
             self._trigger_runout_action(extruder_idx)
 
     def _check_motion_trigger(self, extruder_idx: int, sensor: SensorState):

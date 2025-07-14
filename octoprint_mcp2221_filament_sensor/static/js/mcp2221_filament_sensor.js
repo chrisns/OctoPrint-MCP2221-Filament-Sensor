@@ -57,8 +57,25 @@ $(function() {
       };
 
       // Observable properties
-      self.sensorStatus = ko.observable();
-      self.testResults = ko.observable();
+      // Initialize observables with default values
+      self.sensorStatus = ko.observable({
+        sensors: {},
+        connected: false,
+        mock_mode: false,
+      });
+
+      self.sensorData = ko.observable({
+        e0: {
+          runout: { pin: 0, raw_value: false },
+          motion: { pin: 1, raw_value: false },
+        },
+        e1: {
+          runout: { pin: 2, raw_value: false },
+          motion: { pin: 3, raw_value: false },
+        },
+      });
+
+      self.testResults = ko.observable("");
       self.testingInProgress = ko.observable(false);
 
       // Auto-refresh status every 5 seconds
