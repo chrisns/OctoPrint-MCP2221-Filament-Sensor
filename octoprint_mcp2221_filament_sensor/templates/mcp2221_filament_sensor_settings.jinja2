@@ -1,0 +1,284 @@
+<div class="mcp2221-filament-sensor-settings">
+    <h4>{{ _('MCP2221A Filament Sensor Settings') }}</h4>
+    
+    <!-- Hardware Settings -->
+    <div class="control-group">
+        <h5>{{ _('Hardware Settings') }}</h5>
+        
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.use_mock">
+                {{ _('Use mock hardware (for testing without MCP2221A)') }}
+            </label>
+            <span class="help-block">{{ _('Enable this to test the plugin without actual hardware connected.') }}</span>
+        </div>
+        
+        <div class="controls">
+            <label for="poll_interval">{{ _('Sensor Poll Interval (seconds)') }}</label>
+            <input type="number" 
+                   step="0.01" 
+                   min="0.01" 
+                   max="1.0" 
+                   id="poll_interval" 
+                   data-bind="value: settings.plugins.mcp2221_filament_sensor.poll_interval" 
+                   class="input-small">
+            <span class="help-block">{{ _('How often to check sensors (0.01 = 10ms for fast pulse detection). Lower values catch more motion pulses but use more CPU.') }}</span>
+        </div>
+    </div>
+    
+    <!-- Extruder 0 Settings -->
+    <div class="control-group">
+        <h5>{{ _('Extruder 0 (E0) Settings') }}</h5>
+        
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.e0_enabled">
+                {{ _('Enable E0 sensors') }}
+            </label>
+        </div>
+        
+        <div data-bind="visible: settings.plugins.mcp2221_filament_sensor.e0_enabled">
+            <div class="controls">
+                <label for="e0_runout_pin">{{ _('E0 Runout Sensor Pin') }}</label>
+                <select id="e0_runout_pin" data-bind="value: settings.plugins.mcp2221_filament_sensor.e0_runout_pin">
+                    <option value="0">Pin 0</option>
+                    <option value="1">Pin 1</option>
+                    <option value="2">Pin 2</option>
+                    <option value="3">Pin 3</option>
+                </select>
+                <label class="checkbox inline">
+                    <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.e0_runout_inverted">
+                    {{ _('Inverted (NC)') }}
+                </label>
+            </div>
+            
+            <div class="controls">
+                <label for="e0_motion_pin">{{ _('E0 Motion Sensor Pin') }}</label>
+                <select id="e0_motion_pin" data-bind="value: settings.plugins.mcp2221_filament_sensor.e0_motion_pin">
+                    <option value="0">Pin 0</option>
+                    <option value="1">Pin 1</option>
+                    <option value="2">Pin 2</option>
+                    <option value="3">Pin 3</option>
+                </select>
+                <label class="checkbox inline">
+                    <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.e0_motion_inverted">
+                    {{ _('Inverted') }}
+                </label>
+            </div>
+            
+            <div class="controls">
+                <label for="e0_motion_timeout">{{ _('E0 Motion Timeout (seconds)') }}</label>
+                <input type="number" 
+                       step="1" 
+                       min="10" 
+                       max="300" 
+                       id="e0_motion_timeout" 
+                       data-bind="value: settings.plugins.mcp2221_filament_sensor.e0_motion_timeout" 
+                       class="input-small">
+                <span class="help-block">{{ _('Trigger jam detection if no motion detected for this many seconds during printing (30s recommended).') }}</span>
+            </div>
+            
+            <div class="controls">
+                <label for="e0_debounce_time">{{ _('E0 Debounce Time (seconds)') }}</label>
+                <input type="number" 
+                       step="0.1" 
+                       min="0.1" 
+                       max="2.0" 
+                       id="e0_debounce_time" 
+                       data-bind="value: settings.plugins.mcp2221_filament_sensor.e0_debounce_time" 
+                       class="input-small">
+                <span class="help-block">{{ _('Prevent false triggers by requiring sensor state to be stable for this duration (0.5s recommended).') }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Extruder 1 Settings -->
+    <div class="control-group">
+        <h5>{{ _('Extruder 1 (E1) Settings') }}</h5>
+        
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.e1_enabled">
+                {{ _('Enable E1 sensors') }}
+            </label>
+        </div>
+        
+        <div data-bind="visible: settings.plugins.mcp2221_filament_sensor.e1_enabled">
+            <div class="controls">
+                <label for="e1_runout_pin">{{ _('E1 Runout Sensor Pin') }}</label>
+                <select id="e1_runout_pin" data-bind="value: settings.plugins.mcp2221_filament_sensor.e1_runout_pin">
+                    <option value="0">Pin 0</option>
+                    <option value="1">Pin 1</option>
+                    <option value="2">Pin 2</option>
+                    <option value="3">Pin 3</option>
+                </select>
+                <label class="checkbox inline">
+                    <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.e1_runout_inverted">
+                    {{ _('Inverted (NC)') }}
+                </label>
+            </div>
+            
+            <div class="controls">
+                <label for="e1_motion_pin">{{ _('E1 Motion Sensor Pin') }}</label>
+                <select id="e1_motion_pin" data-bind="value: settings.plugins.mcp2221_filament_sensor.e1_motion_pin">
+                    <option value="0">Pin 0</option>
+                    <option value="1">Pin 1</option>
+                    <option value="2">Pin 2</option>
+                    <option value="3">Pin 3</option>
+                </select>
+                <label class="checkbox inline">
+                    <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.e1_motion_inverted">
+                    {{ _('Inverted') }}
+                </label>
+            </div>
+            
+            <div class="controls">
+                <label for="e1_motion_timeout">{{ _('E1 Motion Timeout (seconds)') }}</label>
+                <input type="number" 
+                       step="1" 
+                       min="10" 
+                       max="300" 
+                       id="e1_motion_timeout" 
+                       data-bind="value: settings.plugins.mcp2221_filament_sensor.e1_motion_timeout" 
+                       class="input-small">
+                <span class="help-block">{{ _('Trigger jam detection if no motion detected for this many seconds during printing (30s recommended).') }}</span>
+            </div>
+            
+            <div class="controls">
+                <label for="e1_debounce_time">{{ _('E1 Debounce Time (seconds)') }}</label>
+                <input type="number" 
+                       step="0.1" 
+                       min="0.1" 
+                       max="2.0" 
+                       id="e1_debounce_time" 
+                       data-bind="value: settings.plugins.mcp2221_filament_sensor.e1_debounce_time" 
+                       class="input-small">
+                <span class="help-block">{{ _('Prevent false triggers by requiring sensor state to be stable for this duration (0.5s recommended).') }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- G-code Action Settings -->
+    <div class="control-group">
+        <h5>{{ _('G-code Action Settings') }}</h5>
+        
+        <div class="controls">
+            <label for="runout_gcode">{{ _('Filament Runout G-code') }}</label>
+            <textarea id="runout_gcode" 
+                      rows="4" 
+                      data-bind="value: settings.plugins.mcp2221_filament_sensor.runout_gcode" 
+                      class="input-xxlarge"
+                      placeholder="M600&#10;; Filament runout detected&#10;M117 Insert filament and resume"></textarea>
+            <span class="help-block">{{ _('G-code commands executed when filament runs out. Use M600 for automatic filament change, or @pause to pause print. One command per line.') }}</span>
+        </div>
+        
+        <div class="controls">
+            <label for="motion_timeout_gcode">{{ _('Motion Timeout G-code') }}</label>
+            <textarea id="motion_timeout_gcode" 
+                      rows="4" 
+                      data-bind="value: settings.plugins.mcp2221_filament_sensor.motion_timeout_gcode" 
+                      class="input-xxlarge"
+                      placeholder="@pause&#10;; No motion detected - possible jam&#10;M117 Check for filament jam"></textarea>
+            <span class="help-block">{{ _('G-code commands executed when motion timeout occurs (potential jam). Use @pause to pause print for inspection. One command per line.') }}</span>
+        </div>
+    </div>
+    
+    <!-- Advanced Settings -->
+    <div class="control-group">
+        <h5>{{ _('Advanced Settings') }}</h5>
+        
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.only_active_extruder">
+                {{ _('Only monitor active extruder during printing') }}
+            </label>
+            <span class="help-block">{{ _('When enabled, only monitors the currently active extruder during printing.') }}</span>
+        </div>
+        
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.prevent_print_start">
+                {{ _('Prevent print start without filament') }}
+            </label>
+            <span class="help-block">{{ _('Prevent starting a print if any enabled runout sensor indicates no filament.') }}</span>
+        </div>
+        
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.notification_enabled">
+                {{ _('Enable notifications') }}
+            </label>
+            <span class="help-block">{{ _('Show popup notifications when sensors trigger.') }}</span>
+        </div>
+        
+        <div class="controls">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.mcp2221_filament_sensor.debug_logging">
+                {{ _('Enable debug logging') }}
+            </label>
+            <span class="help-block">{{ _('Enable detailed logging for troubleshooting.') }}</span>
+        </div>
+    </div>
+    
+    <!-- Test Section -->
+    <div class="control-group">
+        <h5>{{ _('Sensor Testing') }}</h5>
+        
+        <div class="controls">
+            <button class="btn btn-primary" data-bind="click: testSensors, enable: !testingInProgress">
+                <i class="fas fa-test-tube" data-bind="visible: !testingInProgress"></i>
+                <i class="fas fa-spinner fa-spin" data-bind="visible: testingInProgress"></i>
+                {{ _('Test Sensors') }}
+            </button>
+            <span class="help-block">{{ _('Test current sensor readings from the MCP2221A.') }}</span>
+        </div>
+        
+        <div id="sensor-test-results" data-bind="visible: testResults" class="alert" style="margin-top: 10px;">
+            <pre data-bind="text: testResults"></pre>
+        </div>
+    </div>
+    
+    <!-- Status Display -->
+    <div class="control-group">
+        <h5>{{ _('Current Status') }}</h5>
+        
+        <div class="controls">
+            <div class="sensor-status-display">
+                <div data-bind="visible: sensorStatus">
+                    <strong>{{ _('Hardware:') }}</strong> 
+                    <span data-bind="text: sensorStatus() ? (sensorStatus().hardware_connected ? 'Connected' : 'Not Connected') : 'Unknown'"></span>
+                    <span data-bind="visible: sensorStatus() && sensorStatus().hardware_connected && settings.plugins.mcp2221_filament_sensor.use_mock()" class="label label-warning">{{ _('Mock Mode') }}</span>
+                    <br>
+                    
+                    <div data-bind="visible: sensorStatus() && sensorStatus().sensors">
+                        <div data-bind="foreach: Object.keys(sensorStatus().sensors || {})">
+                            <div class="extruder-status">
+                                <strong data-bind="text: 'Extruder ' + $data.toUpperCase() + ':'"></strong>
+                                <div class="sensor-readings" data-bind="with: $parent.sensorStatus().sensors[$data]">
+                                    <span class="runout-status">
+                                        {{ _('Runout:') }} 
+                                        <span data-bind="text: runout.state ? 'Filament Present' : 'No Filament'" 
+                                              data-bind="css: {'text-success': runout.state, 'text-error': !runout.state}"></span>
+                                        (Pin <span data-bind="text: runout.pin"></span>)
+                                    </span>
+                                    <br>
+                                    <span class="motion-status">
+                                        {{ _('Motion:') }} 
+                                        <span data-bind="text: motion.timeout ? 'Timeout' : 'Active'" 
+                                              data-bind="css: {'text-error': motion.timeout, 'text-success': !motion.timeout}"></span>
+                                        (Pin <span data-bind="text: motion.pin"></span>, 
+                                        Rate: <span data-bind="text: motion.rate.toFixed(1)"></span> pulses/sec)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div data-bind="visible: !sensorStatus">
+                    <em>{{ _('Status not available') }}</em>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

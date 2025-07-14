@@ -1,0 +1,153 @@
+/* MCP2221A Filament Sensor Plugin Styles */
+
+.mcp2221-filament-sensor-settings {
+    margin: 0;
+    padding: 0;
+}
+
+.mcp2221-filament-sensor-settings h4 {
+    margin-bottom: 20px;
+    color: #333;
+    border-bottom: 2px solid #0088cc;
+    padding-bottom: 5px;
+}
+
+.mcp2221-filament-sensor-settings h5 {
+    margin-top: 25px;
+    margin-bottom: 15px;
+    color: #555;
+    font-weight: bold;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 3px;
+}
+
+/* Sensor status display */
+.sensor-status-display {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+.extruder-status {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #e3e3e3;
+    border-radius: 3px;
+}
+
+.extruder-status:last-child {
+    margin-bottom: 0;
+}
+
+.sensor-readings {
+    margin-left: 15px;
+    margin-top: 5px;
+}
+
+.runout-status,
+.motion-status {
+    display: block;
+    margin: 5px 0;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+/* Status indicators */
+.text-success {
+    color: #5cb85c !important;
+    font-weight: bold;
+}
+
+.text-error {
+    color: #d9534f !important;
+    font-weight: bold;
+}
+
+.text-warning {
+    color: #f0ad4e !important;
+    font-weight: bold;
+}
+
+/* Test results */
+#sensor-test-results {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#sensor-test-results pre {
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+    border: none;
+    border-radius: 4px;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Form improvements */
+.mcp2221-filament-sensor-settings .controls {
+    margin-bottom: 10px;
+}
+
+.mcp2221-filament-sensor-settings .help-block {
+    color: #777;
+    font-size: 11px;
+    margin-top: 5px;
+}
+
+.mcp2221-filament-sensor-settings label.checkbox.inline {
+    margin-left: 10px;
+    font-weight: normal;
+}
+
+/* Pin selection styling */
+.mcp2221-filament-sensor-settings select {
+    width: auto;
+    display: inline-block;
+    margin-right: 10px;
+}
+
+/* Button styling */
+.mcp2221-filament-sensor-settings .btn {
+    margin-right: 10px;
+}
+
+/* Warning for mock mode */
+.label-warning {
+    background-color: #f0ad4e;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: normal;
+    margin-left: 5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .mcp2221-filament-sensor-settings .input-large,
+    .mcp2221-filament-sensor-settings .input-medium {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .mcp2221-filament-sensor-settings label.checkbox.inline {
+        display: block;
+        margin-left: 0;
+        margin-top: 5px;
+    }
+    
+    .sensor-status-display {
+        padding: 10px;
+    }
+    
+    .extruder-status {
+        padding: 8px;
+    }
+} 

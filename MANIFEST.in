@@ -1,0 +1,3 @@
+include README.md
+recursive-include octoprint_mcp2221_filament_sensor/templates *
+recursive-include octoprint_mcp2221_filament_sensor/static * 
